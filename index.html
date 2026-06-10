@@ -932,47 +932,60 @@
             const clean = word.toLowerCase().replace(/[^a-z]/g, '');
             if (!clean) throw new Error('無效單字');
 
-            // 呼叫 Free Dictionary API（免費、支援 CORS、無需金鑰）
-            const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`);
-            
-            if (!res.ok) {
-                // 查不到時，用備用字典或顯示基本資訊
-                const fallback = fallbackDict[clean];
-                return {
-                    word: clean,
-                    phonetic: '',
-                    partOfSpeech: '—',
-                    translation: fallback || '（查無此詞，請點擊朗讀）'
-                };
+            // 先查備用字典（高頻詞直接回傳，不需 API）
+            if (fallbackDict[clean]) {
+                return { word: clean, phonetic: '', partOfSpeech: '—', translation: fallbackDict[clean] };
             }
 
-            const data = await res.json();
-            const entry = data[0];
+            // 同時呼叫字典 API + 翻譯 API
+            const [dictRes, transRes] = await Promise.allSettled([
+                fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`),
+                fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|zh-TW`)
+            ]);
 
-            // 取音標
-            let phonetic = entry.phonetic || '';
-            if (!phonetic && entry.phonetics?.length) {
-                phonetic = entry.phonetics.find(p => p.text)?.text || '';
+            // 處理字典結果
+            let phonetic = '';
+            let partOfSpeech = 'n.';
+            let engDef = '';
+
+            if (dictRes.status === 'fulfilled' && dictRes.value.ok) {
+                const data = await dictRes.value.json();
+                const entry = data[0];
+                phonetic = entry.phonetic || entry.phonetics?.find(p => p.text)?.text || '';
+                const meaning = entry.meanings?.[0];
+                const rawPos = meaning?.partOfSpeech || '';
+                partOfSpeech = posMap[rawPos] || (rawPos ? rawPos.slice(0,5)+'.' : 'n.');
+                engDef = meaning?.definitions?.[0]?.definition || '';
             }
 
-            // 取第一個詞性與釋義
-            const meaning = entry.meanings?.[0];
-            const rawPos = meaning?.partOfSpeech || '';
-            const partOfSpeech = posMap[rawPos] || (rawPos ? rawPos.slice(0,5)+'.' : 'n.');
-            const engDef = meaning?.definitions?.[0]?.definition || '';
+            // 處理翻譯結果
+            let translation = '';
+            if (transRes.status === 'fulfilled' && transRes.value.ok) {
+                const tData = await transRes.value.json();
+                const raw = tData.responseData?.translatedText || '';
+                // MyMemory 有時回傳全大寫或英文原字，過濾掉
+                if (raw && raw !== clean.toUpperCase() && raw.toLowerCase() !== clean && /[\u4e00-\u9fff]/.test(raw)) {
+                    translation = raw;
+                }
+            }
 
-            // 翻譯：優先用備用字典，否則顯示英文定義
-            const translation = fallbackDict[clean] || translateDefinition(clean, rawPos, engDef);
+            // 若翻譯 API 沒有中文結果，顯示英文定義
+            if (!translation) {
+                translation = engDef ? (engDef.length > 70 ? engDef.slice(0, 70) + '...' : engDef) : '（查無中文釋義）';
+            }
 
             return { word: clean, phonetic, partOfSpeech, translation };
         }
 
-        // 將英文詞義轉為簡易中文說明
-        function translateDefinition(word, pos, engDef) {
-            if (!engDef) return '（點擊朗讀，查詢更多釋義）';
-            // 截短英文定義，供使用者參考
-            const short = engDef.length > 80 ? engDef.slice(0, 80) + '...' : engDef;
-            return short;
+        // 翻譯任意英文文字為繁體中文（用於例句）
+        async function translateToZh(text) {
+            try {
+                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-TW`);
+                if (!res.ok) return '';
+                const data = await res.json();
+                const raw = data.responseData?.translatedText || '';
+                return /[\u4e00-\u9fff]/.test(raw) ? raw : '';
+            } catch { return ''; }
         }
 
         function showPopoverLoading(element, word) {
@@ -1064,10 +1077,9 @@
             if (!resultDiv || !btn) return;
 
             resultDiv.classList.remove('hidden');
-
-            // 嘗試用 Free Dictionary API 取得真實例句
             btn.disabled = true;
             btn.innerHTML = `<svg class="animate-spin h-3.5 w-3.5 text-white mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>查詢例句中...`;
+            resultDiv.innerHTML = `<div class="text-center text-stone-400 py-2 text-[10px]">🔍 查詢中...</div>`;
 
             try {
                 const clean = word.toLowerCase().replace(/[^a-z]/g, '');
@@ -1076,7 +1088,7 @@
                 if (!res.ok) throw new Error('查無例句');
                 const data = await res.json();
                 
-                // 收集所有有例句的定義
+                // 收集例句
                 const examples = [];
                 for (const entry of data) {
                     for (const meaning of (entry.meanings || [])) {
@@ -1084,8 +1096,7 @@
                             if (def.example && examples.length < 3) {
                                 examples.push({
                                     english: def.example,
-                                    pos: posMap[meaning.partOfSpeech] || meaning.partOfSpeech || '',
-                                    definition: def.definition || ''
+                                    pos: posMap[meaning.partOfSpeech] || meaning.partOfSpeech || ''
                                 });
                             }
                         }
@@ -1094,13 +1105,20 @@
 
                 if (examples.length === 0) throw new Error('此單字無收錄例句');
 
+                // 同步翻譯所有例句
+                resultDiv.innerHTML = `<div class="text-center text-stone-400 py-2 text-[10px]">🌐 翻譯中文中...</div>`;
+                const translations = await Promise.all(
+                    examples.map(ex => translateToZh(ex.english))
+                );
+
                 let html = '';
                 examples.forEach((ex, idx) => {
+                    const zhTrans = translations[idx] || '';
                     html += `
-                        <div class="bg-stone-50 p-2 rounded-lg border border-stone-100">
+                        <div class="bg-stone-50 p-2 rounded-lg border border-stone-100 space-y-1">
                             <p class="font-bold text-stone-800 leading-snug text-[11px]">${idx + 1}. ${ex.english}</p>
-                            <p class="text-[10px] text-[#bc675b] font-medium mt-1 leading-snug">${ex.pos} ${ex.definition.slice(0, 60)}${ex.definition.length > 60 ? '...' : ''}</p>
-                            <button onclick="speakText('${ex.english.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="text-[9px] text-indigo-600 hover:underline mt-1 font-bold flex items-center gap-0.5">
+                            ${zhTrans ? `<p class="text-[10px] text-[#bc675b] font-medium leading-snug">🇹🇼 ${zhTrans}</p>` : ''}
+                            <button onclick="speakText('${ex.english.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="text-[9px] text-indigo-600 hover:underline font-bold flex items-center gap-0.5">
                                 🔊 點擊播放發音
                             </button>
                         </div>
@@ -1109,7 +1127,7 @@
                 resultDiv.innerHTML = html;
                 btn.innerHTML = `✅ 已載入例句`;
             } catch (err) {
-                resultDiv.innerHTML = `<p class="text-stone-500 text-[10px] leading-relaxed">📖 此單字無收錄公開例句。<br>建議至 <a href="https://www.ldoceonline.com/dictionary/${encodeURIComponent(word)}" target="_blank" class="text-indigo-600 underline">Longman 字典</a> 查詢更多例句。</p>`;
+                resultDiv.innerHTML = `<p class="text-stone-500 text-[10px] leading-relaxed">📖 此單字無收錄公開例句。<br>建議至 <a href="https://www.ldoceonline.com/dictionary/${encodeURIComponent(word)}" target="_blank" class="text-indigo-600 underline">Longman 字典</a> 查詢。</p>`;
                 btn.innerHTML = `📖 查詢例句`;
                 btn.disabled = false;
             }
