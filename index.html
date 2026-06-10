@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart English Reader 智慧英文閱讀助手</title>
+    <!-- Favicon: 小羊布布 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐑</text></svg>">
+    <!-- Tailwind CSS (suppress production warning) -->
+    <script>
+      // Override console.warn to suppress Tailwind CDN production warning
+      (function(){
+        const _warn = console.warn.bind(console);
+        console.warn = function(...args) {
+          if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+          _warn(...args);
+        };
+      })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { corePlugins: { preflight: true } }</script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #fdfaf6; /* 溫暖燕麥白背景 */
+            background-image: radial-gradient(#f4ede2 1.5px, transparent 1.5px);
+            background-size: 24px 24px;
+        }
+
+        /* 羊毛氈厚實厚圓角卡片風格 */
+        .felt-card {
+            background-color: #ffffff;
+            border: 4px solid #f3ede2; /* 手工感厚邊框 */
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(180, 160, 140, 0.15), 0 8px 10px -6px rgba(180, 160, 140, 0.15), inset 0 -4px 0px #f0e6d6;
+        }
+
+        /* 手工拼布縫線效果 */
+        .felt-stitch {
+            position: relative;
+        }
+        .felt-stitch::after {
+            content: '';
+            position: absolute;
+            inset: 6px;
+            border: 2px dashed #dcd0bc;
+            border-radius: 18px;
+            pointer-events: none;
+        }
+
+        /* 羊毛針織鈕扣按鈕 */
+        .felt-btn {
+            background-color: #e28f83; /* 溫暖珊瑚粉紅 */
+            color: #ffffff;
+            border: 3px solid #f6d1ca;
+            border-radius: 18px;
+            box-shadow: 0 4px 6px rgba(226, 143, 131, 0.2), inset 0 -3px 0 #bc675b;
+            transition: all 0.2s ease;
+        }
+        .felt-btn:hover {
+            transform: translateY(-2px);
+            background-color: #e89c91;
+            box-shadow: 0 6px 12px rgba(226, 143, 131, 0.3), inset 0 -3px 0 #bc675b;
+        }
+        .felt-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 3px rgba(226, 143, 131, 0.2), inset 0 -1px 0 #bc675b;
+        }
+
+        /* 慢速旋轉小花 */
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 12s linear infinite;
+        }
+
+        /* 泡泡漂浮 */
+        @keyframes bubble-float {
+            0%, 100% { transform: translateY(0px) translateX(0px) scale(1); }
+            33% { transform: translateY(-12px) translateX(4px) scale(1.03); }
+            66% { transform: translateY(-4px) translateX(-6px) scale(0.97); }
+        }
+        .animate-bubble-1 {
+            animation: bubble-float 7s ease-in-out infinite;
+        }
+        .animate-bubble-2 {
+            animation: bubble-float 9s ease-in-out infinite 1.5s;
+        }
+        .animate-bubble-3 {
+            animation: bubble-float 8s ease-in-out infinite 3s;
+        }
+
+        /* 蝴蝶翅膀拍動與漂浮 */
+        @keyframes butterfly-move {
+            0%, 100% { transform: translateY(0px) translateX(0px) rotate(5deg); }
+            50% { transform: translateY(-15px) translateX(8px) rotate(-5deg); }
+        }
+        @keyframes butterfly-flap {
+            0%, 100% { transform: scaleX(1); }
+            50% { transform: scaleX(0.4); }
+        }
+        .animate-butterfly {
+            animation: butterfly-move 6s ease-in-out infinite;
+        }
+        .animate-butterfly-wings {
+            animation: butterfly-flap 0.4s ease-in-out infinite;
+            transform-origin: center;
+        }
+
+        /* 完美清晰的字體，絕對不帶有任何毛邊模糊 */
+        .clear-text {
+            text-shadow: none !important;
+            filter: none !important;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 點選單字底線效果 */
+        .word-clickable {
+            transition: all 0.15s ease;
+        }
+        .word-clickable:hover {
+            background-color: #fcece9;
+            color: #d15d4d;
+            border-radius: 4px;
+        }
+
+        /* 美化滾動條 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fdfaf6;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e6ddcf;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #dcd0bc;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-stone-800 pb-16 relative overflow-x-hidden">
+
+    <!-- 訊息提示容器 (Toast Container) -->
+    <div id="toast-container" class="fixed top-24 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- 柔和漂浮背景泡泡 1 -->
+    <div class="absolute top-24 left-6 w-12 h-12 rounded-full border-2 border-pink-200/50 bg-pink-100/10 pointer-events-none animate-bubble-1 flex items-center justify-center">
+        <div class="w-8 h-8 rounded-full border border-white/40 bg-white/5"></div>
+    </div>
+    <!-- 柔和漂浮背景泡泡 2 -->
+    <div class="absolute top-[500px] right-12 w-16 h-16 rounded-full border-2 border-blue-200/40 bg-blue-100/10 pointer-events-none animate-bubble-2 flex items-center justify-center">
+        <div class="w-10 h-10 rounded-full border border-white/30 bg-white/5"></div>
+    </div>
+    <!-- 柔和漂浮背景泡泡 3 -->
+    <div class="absolute bottom-40 left-10 w-10 h-10 rounded-full border-2 border-yellow-200/50 bg-yellow-100/10 pointer-events-none animate-bubble-3 flex items-center justify-center">
+        <div class="w-6 h-6 rounded-full border border-white/40 bg-white/5"></div>
+    </div>
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white/80 backdrop-blur-md border-b-4 border-[#f3ede2] sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
+            
+            <!-- Logo & 蝴蝶結裝飾 -->
+            <div class="flex items-center gap-3 relative">
+                <!-- 羊毛氈小花 -->
+                <div class="p-2 bg-amber-100 rounded-full text-amber-700 animate-spin-slow">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2a3 3 0 013 3 3 3 0 01-3 3 3 3 0 01-3-3 3 3 0 013-3zm0 14a3 3 0 013 3 3 3 0 01-3 3 3 3 0 01-3-3 3 3 0 013-3zm7-7a3 3 0 013 3 3 3 0 01-3 3 3 3 0 01-3-3 3 3 0 013-3zM5 9a3 3 0 013 3 3 3 0 01-3 3 3 3 0 01-3-3 3 3 0 013-3zm7 1a2 2 0 110 4 2 2 0 010-4z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-stone-900 tracking-tight flex items-center gap-1.5 clear-text">
+                        Smart English Reader
+                        <span class="inline-block text-xl" title="羊毛氈蝴蝶結">🎀</span>
+                    </h1>
+                    <p class="text-xs text-stone-500 font-medium clear-text flex items-center gap-1">
+                        小羊布布English學習工坊 — crafted by 頵嫻 Annie
+                        <span class="text-sm" title="蝴蝶結裝飾">🎀</span>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- 語音設定區 -->
+            <div class="flex flex-wrap items-center gap-3 bg-[#fbf8f2] p-2 rounded-2xl border-2 border-[#eee5d5] text-sm relative">
+                <!-- 翩翩蝴蝶 1 -->
+                <div class="absolute -top-4 -right-4 pointer-events-none animate-butterfly flex items-center gap-0.5">
+                    <svg class="w-6 h-6 text-pink-400 animate-butterfly-wings" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 8c.5-1.5 1.5-3 3.5-3 2.5 0 3.5 2 3.5 4s-1.5 4.5-3.5 5.5c-1 .5-2.5 1-3.5 1.5m0-8c-.5-1.5-1.5-3-3.5-3C5 4 4 6 4 8s1.5 4.5 3.5 5.5c1 .5 2.5 1 3.5 1.5" />
+                    </svg>
+                </div>
+
+                <!-- 口音選擇 -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-stone-600 clear-text">口音:</span>
+                    <select id="voice-select" class="bg-white border-2 border-[#e6ddcf] rounded-xl px-2 py-1 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-pink-300">
+                        <option value="default">載入語音中...</option>
+                    </select>
+                </div>
+                <!-- 語速 -->
+                <div class="flex items-center gap-1.5 border-l border-[#e6ddcf] pl-3">
+                    <span class="text-xs font-bold text-stone-600 clear-text">語速:</span>
+                    <button onclick="adjustSpeechRate(-0.1)" class="w-5 h-5 flex items-center justify-center bg-[#fdfcfb] hover:bg-[#f3ede2] border border-[#e6ddcf] rounded-full text-stone-600 hover:text-stone-800 transition text-[10px] font-bold shadow-sm active:scale-95" title="減慢語速">-</button>
+                    <input type="range" id="speech-rate" min="0.5" max="1.8" step="0.1" value="1.0" class="w-16 accent-[#e28f83] h-1.5 bg-[#e6ddcf] rounded-lg appearance-none cursor-pointer">
+                    <button onclick="adjustSpeechRate(0.1)" class="w-5 h-5 flex items-center justify-center bg-[#fdfcfb] hover:bg-[#f3ede2] border border-[#e6ddcf] rounded-full text-stone-600 hover:text-stone-800 transition text-[10px] font-bold shadow-sm active:scale-95" title="加快語速">+</button>
+                    <span id="rate-value" class="text-xs font-mono font-bold text-stone-700 w-8 text-right">1.0x</span>
+                </div>
+                <!-- AI 狀態指示 -->
+                <div class="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-xl" title="由 Claude AI 驅動，無需設定">
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
+                    Claude AI 已就緒
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+
+        <!-- AI 驅動提示 -->
+        <div class="mb-6 p-3 bg-emerald-50 border-2 border-emerald-200 rounded-2xl flex items-center gap-3">
+            <span class="text-xl">🐑</span>
+            <p class="text-xs text-emerald-800 font-medium clear-text">
+                ✨ 此網頁由 <strong>Claude AI</strong> 驅動，無需任何 API 金鑰，開啟即可使用所有 AI 功能！
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- 左側：輸入與單字本 (佔 4 格) -->
+            <section class="lg:col-span-4 flex flex-col gap-6">
+                <!-- 貼上文章卡片 -->
+                <div class="felt-card felt-stitch p-5 relative">
+                    <div class="absolute -top-4 -left-4 text-amber-500 animate-spin-slow">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2a2.5 2.5 0 012.5 2.5A2.5 2.5 0 0112 7a2.5 2.5 0 01-2.5-2.5A2.5 2.5 0 0112 2zm0 15a2.5 2.5 0 012.5 2.5 2.5 2.5 0 01-2.5 2.5 2.5 2.5 0 01-2.5-2.5 2.5 2.5 0 012.5-2.5zm7.5-7.5a2.5 2.5 0 012.5 2.5 2.5 2.5 0 01-2.5 2.5 2.5 2.5 0 01-2.5-2.5 2.5 2.5 0 012.5-2.5zM4.5 10a2.5 2.5 0 012.5 2.5A2.5 2.5 0 014.5 15 2.5 2.5 0 012 12.5 2.5 2.5 0 014.5 10zm7.5 1a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                        </svg>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-4 mt-2">
+                        <h2 class="text-sm font-bold text-stone-800 flex items-center gap-1.5 clear-text">
+                            <span class="w-3 h-3 bg-[#e28f83] rounded-full inline-block"></span>
+                            1. 貼上英文短文
+                        </h2>
+                        <div class="flex items-center gap-1">
+                            <button onclick="loadSampleText(1)" class="text-[10px] bg-[#fbf8f2] text-[#bc675b] hover:bg-[#e28f83] hover:text-white transition duration-200 py-0.5 px-2 rounded-lg font-bold border border-[#eee5d5] clear-text">範例一</button>
+                            <button onclick="loadSampleText(2)" class="text-[10px] bg-[#fbf8f2] text-[#bc675b] hover:bg-[#e28f83] hover:text-white transition duration-200 py-0.5 px-2 rounded-lg font-bold border border-[#eee5d5] clear-text">範例二</button>
+                        </div>
+                    </div>
+                    
+                    <textarea id="article-input" rows="6" class="w-full p-3 border-2 border-[#e6ddcf] rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-100 text-stone-700 leading-relaxed text-sm placeholder-stone-400 bg-[#fdfcfb] focus:bg-white transition clear-text" placeholder="在此貼上您的英文短文..."></textarea>
+                    
+                    <div class="mt-3 flex gap-2">
+                        <button id="parse-btn" onclick="parseNewArticle()" class="felt-btn flex-1 font-bold py-2 px-3 flex items-center justify-center gap-2 text-sm clear-text transition-all duration-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            <span>開始解析閱讀</span>
+                        </button>
+                        <button onclick="clearArticle()" class="bg-[#f3ede2] hover:bg-[#e6ddcf] text-stone-600 p-2.5 rounded-xl transition duration-200" title="清空內容">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 收藏單字本卡片 -->
+                <div class="felt-card felt-stitch p-5 relative">
+                    <div class="absolute -top-4 -right-2 text-2xl">🎀</div>
+
+                    <div class="flex justify-between items-center mb-3 pb-1 border-b-2 border-dashed border-[#e6ddcf]">
+                        <h2 class="text-sm font-bold text-stone-800 flex items-center gap-1.5 clear-text">
+                            <span>🧸</span>
+                            我的單字本 (<span id="vocab-count">0</span>)
+                        </h2>
+                        <button onclick="clearAllVocab()" class="text-xs text-[#bc675b] font-bold hover:underline clear-text">全部清除</button>
+                    </div>
+                    
+                    <div id="vocab-list" class="max-h-52 overflow-y-auto flex flex-col gap-2 pr-1">
+                        <div id="vocab-empty-state" class="text-center py-6 text-stone-400 text-xs leading-relaxed clear-text">
+                            目前尚未收藏任何單字。<br>點擊文章單字並點擊 ★ 即可加入！
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 中間：互動式閱讀面板 (佔 5 格) -->
+            <section class="lg:col-span-5">
+                <div class="felt-card felt-stitch p-5 min-h-[460px] flex flex-col justify-between relative">
+                    <div class="absolute bottom-4 right-4 text-green-300 animate-spin-slow pointer-events-none">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2a2.5 2.5 0 012.5 2.5A2.5 2.5 0 0112 7a2.5 2.5 0 01-2.5-2.5A2.5 2.5 0 0112 2zm0 15a2.5 2.5 0 012.5 2.5 2.5 2.5 0 01-2.5 2.5 2.5 2.5 0 01-2.5-2.5 2.5 2.5 0 012.5-2.5zm7.5-7.5a2.5 2.5 0 012.5 2.5 2.5 2.5 0 01-2.5 2.5 2.5 2.5 0 01-2.5-2.5 2.5 2.5 0 012.5-2.5zM4.5 10a2.5 2.5 0 012.5 2.5A2.5 2.5 0 014.5 15 2.5 2.5 0 012 12.5 2.5 2.5 0 014.5 10zm7.5 1a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                        </svg>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-4 pb-2 border-b-2 border-[#e6ddcf]">
+                            <h2 class="text-sm font-bold text-stone-800 flex items-center gap-1.5 clear-text">
+                                <span class="w-3 h-3 bg-[#e28f83] rounded-full inline-block"></span>
+                                互動閱讀區
+                            </h2>
+                            <div class="flex items-center gap-2">
+                                <button id="read-full-article-btn" onclick="readFullArticle()" class="hidden text-xs bg-[#fdf2f0] text-[#bc675b] hover:bg-[#e28f83] hover:text-white transition duration-200 py-1 px-2.5 rounded-lg font-bold border border-[#f5dbd7] clear-text" title="朗讀整篇短文">
+                                    🔊 朗讀全文
+                                </button>
+                                <span class="text-[10px] font-bold text-[#bc675b] bg-[#fbf8f2] py-0.5 px-2 rounded-full border border-[#eee5d5] clear-text">
+                                    💡 點擊查字 | 反白翻譯
+                                </span>
+                            </div>
+                        </div>
+
+                        <div id="interactive-text-container" class="relative z-10">
+                            <div id="interactive-text" class="text-stone-700 leading-relaxed text-base tracking-wide whitespace-pre-line min-h-[360px] p-4 bg-[#fdfcfb] rounded-2xl border-2 border-dashed border-[#e6ddcf] clear-text">
+                                <div class="flex flex-col items-center justify-center h-48 text-center text-stone-400">
+                                    <span class="text-3xl mb-2">📖</span>
+                                    <p class="text-xs font-semibold clear-text">請於左側輸入英文短文，並點擊「開始分析閱讀」</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右側：✨ AI 羊毛氈學習伴侶「小羊布布」 (佔 3 格) -->
+            <section class="lg:col-span-3">
+                <div class="felt-card felt-stitch p-4 min-h-[460px] flex flex-col justify-between relative bg-stone-50/50">
+                    <div>
+                        <div class="flex items-center gap-2 pb-2 border-b-2 border-dashed border-[#e6ddcf] mb-3">
+                            <div class="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-xl border border-orange-200">
+                                🐑
+                            </div>
+                            <div>
+                                <h2 class="text-sm font-bold text-stone-800 clear-text">✨ AI 伴侶小羊布布</h2>
+                                <p class="text-[10px] text-stone-500 font-medium clear-text">您的專屬羊毛氈英文導師</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-1.5 mb-3">
+                            <button onclick="triggerBuddyAction('grammar')" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 rounded-xl py-1 text-[10px] font-bold transition transition-all clear-text" title="分析文章中的核心文法">
+                                ✨ 句型文法
+                            </button>
+                            <button onclick="triggerBuddyAction('simplify')" class="bg-[#fbece9] hover:bg-[#f6dad5] border border-[#f2ccc5] text-[#bc675b] rounded-xl py-1 text-[10px] font-bold transition transition-all clear-text" title="把文章改寫成較簡單的版本">
+                                ✨ 簡化文章
+                            </button>
+                        </div>
+
+                        <div id="buddy-chat-container" class="h-64 overflow-y-auto bg-white border border-[#e6ddcf] rounded-xl p-3 flex flex-col gap-2.5 text-xs">
+                            <div class="bg-orange-50 border border-orange-100 p-2.5 rounded-2xl rounded-tl-none text-stone-700 leading-relaxed clear-text">
+                                <span class="font-bold text-orange-800 block mb-0.5">🐑 小羊布布：</span>
+                                哈囉！我是小羊布布。只要點選上方的功能，或者在下方輸入問題，我就能幫您分析文法，或是聊聊這篇文章喔！🧶
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-[#e6ddcf] flex gap-1.5 relative z-10">
+                        <input id="buddy-input" type="text" class="flex-1 p-2 border border-[#e6ddcf] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-pink-300 clear-text" placeholder="問問布布這篇文章的事情...">
+                        <button onclick="sendBuddyMessage()" class="felt-btn font-bold px-3 py-2 text-xs flex items-center justify-center gap-1 clear-text">
+                            ✨ 傳送
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 底部版面：全句音標與朗讀工具 -->
+        <section class="mt-8 felt-card felt-stitch p-6 sm:p-8 relative">
+            <div class="absolute -top-5 left-1/3 pointer-events-none animate-butterfly flex items-center gap-0.5">
+                <svg class="w-8 h-8 text-[#e28f83] animate-butterfly-wings" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 8c.5-1.5 1.5-3 3.5-3 2.5 0 3.5 2 3.5 4s-1.5 4.5-3.5 5.5c-1 .5-2.5 1-3.5 1.5m0-8c-.5-1.5-1.5-3-3.5-3C5 4 4 6 4 8s1.5 4.5 3.5 5.5c1 .5 2.5 1 3.5 1.5" />
+                </svg>
+            </div>
+
+            <div class="border-b-2 border-dashed border-[#e6ddcf] pb-4 mb-6">
+                <h2 class="text-lg font-bold text-stone-800 flex items-center gap-1.5 clear-text">
+                    <span class="w-3.5 h-3.5 bg-[#e28f83] rounded-full inline-block"></span>
+                    全句美式音標與自動朗讀轉換器
+                </h2>
+                <p class="text-xs text-stone-500 mt-1 font-medium clear-text">貼上完整句子，AI 將自動排版出整句美式國際音標 (IPA)，並提供英文發音</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                <div class="flex flex-col gap-3">
+                    <label class="text-sm font-bold text-stone-700 clear-text">請貼上您想解析的整段句子：</label>
+                    <textarea id="phonetic-input" rows="4" class="w-full p-4 border-2 border-[#e6ddcf] rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-100 text-stone-700 text-sm bg-[#fdfcfb] focus:bg-white transition clear-text" placeholder="例如：The quick brown fox jumps over the lazy dog."></textarea>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="convertSentenceToPhonetics()" class="felt-btn flex-1 font-bold py-2.5 px-4 flex items-center justify-center gap-2 text-sm clear-text">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.656 48.656 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7C4.68 9.547 4.634 10.768 4.634 12c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.092-1.21.138-2.43.138-3.662z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 10.5l3 3 3-3"></path>
+                            </svg>
+                            轉換整句音標
+                        </button>
+                        <button onclick="clearPhoneticArea()" class="bg-[#f3ede2] hover:bg-[#e6ddcf] text-stone-600 py-2.5 px-4 rounded-xl transition duration-200 text-xs font-bold clear-text">
+                            重置
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-[#fdfcf9] rounded-2xl border-2 border-dashed border-[#e6ddcf] p-6 flex flex-col justify-between gap-4 relative min-h-[160px]">
+                    <div id="phonetic-output-container" class="opacity-40 flex flex-col items-center justify-center h-full text-center py-6">
+                        <span class="text-4xl mb-2">📣</span>
+                        <p class="text-sm font-medium text-stone-500 clear-text">轉換後的句子與美式音標會顯示在這裡</p>
+                    </div>
+
+                    <div id="phonetic-result-section" class="hidden flex flex-col justify-between h-full">
+                        <div class="space-y-4">
+                            <div>
+                                <span class="text-xs font-bold text-[#bc675b] tracking-wider uppercase clear-text">原文句子 Original</span>
+                                <p id="phonetic-orig-text" class="text-stone-800 font-semibold text-base leading-relaxed mt-1 clear-text"></p>
+                            </div>
+                            <div class="bg-[#fbece9] p-4 rounded-xl border border-[#ebd2ce]">
+                                <span class="text-xs font-bold text-[#bc675b] tracking-wider uppercase clear-text">美式國際音標 IPA</span>
+                                <p id="phonetic-ipa-text" class="text-stone-900 font-mono text-lg font-bold tracking-wide mt-1 leading-relaxed select-all" title="點擊即可全選音標"></p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-stone-500 tracking-wider uppercase clear-text">整句中文翻譯 Translation</span>
+                                <p id="phonetic-trans-text" class="text-stone-600 text-sm mt-1 leading-relaxed clear-text"></p>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t-2 border-dashed border-[#e6ddcf] mt-4 flex items-center justify-between">
+                            <button id="phonetic-speak-btn" class="felt-btn font-bold py-2 px-5 flex items-center gap-2 text-xs clear-text">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"></path>
+                                </svg>
+                                英文整句朗讀
+                            </button>
+                            <span class="text-xs text-stone-400 font-medium clear-text">音標格式：/IPA/</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 浮動單字解釋卡片 (Word Popover) -->
+    <div id="word-popover" class="hidden absolute bg-white text-stone-800 rounded-3xl shadow-2xl border-4 border-[#f3ede2] p-5 w-72 z-50 transition-all duration-200 pointer-events-auto felt-stitch">
+        <!-- 內容動態插入 -->
+    </div>
+
+    <!-- 反白選取長句翻譯懸浮小氣泡 -->
+    <div id="selection-bubble" class="hidden absolute bg-[#e28f83] hover:bg-[#e89c91] text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg z-50 cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all border-2 border-[#f6d1ca] clear-text">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5c-.313 1.565-.927 3.051-1.801 4.384m1.801-4.384a11.241 11.241 0 00-3.385-1.312M12.75 5h3.75M9 15h3m3 3H9"></path>
+        </svg>
+        <span>翻譯與朗讀選取句</span>
+    </div>
+
+    <!-- 翻譯長句展示 Modal -->
+    <div id="translation-modal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border-4 border-[#f3ede2] flex flex-col overflow-hidden max-h-[90vh] felt-stitch relative">
+            <div class="px-6 py-4 bg-[#fbf8f2] border-b-2 border-dashed border-[#e6ddcf] flex justify-between items-center">
+                <h3 class="font-bold text-stone-800 flex items-center gap-2 clear-text">
+                    <span>💬</span>
+                    選取句翻譯與朗讀
+                </h3>
+                <button onclick="closeTranslationModal()" class="text-stone-400 hover:text-stone-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <h4 class="text-xs font-bold text-[#bc675b] tracking-wider uppercase clear-text">英文原文 Original</h4>
+                        <button id="modal-original-speak-btn" class="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-0.5 rounded-lg transition flex items-center gap-1 text-[10px] font-bold clear-text" title="朗讀原文">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                            </svg>
+                            朗讀
+                        </button>
+                    </div>
+                    <div class="bg-[#fdfcfb] p-4 border-2 border-dashed border-[#e6ddcf] rounded-2xl">
+                        <p id="modal-original-text" class="text-stone-800 text-base leading-relaxed clear-text"></p>
+                        <p id="modal-phonetic-text" class="hidden text-stone-500 font-mono text-sm mt-2 pt-2 border-t border-dashed border-[#e6ddcf] clear-text"></p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-stone-400 tracking-wider uppercase mb-1 clear-text">中文翻譯 Translation</h4>
+                    <div id="modal-translation-loading" class="py-6 flex justify-center items-center gap-2 text-stone-500">
+                        <svg class="animate-spin h-5 w-5 text-[#e28f83]" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-sm font-semibold clear-text">AI 正在針織翻譯中...</span>
+                    </div>
+                    <p id="modal-translation-text" class="hidden text-stone-900 text-lg font-bold leading-relaxed bg-[#fbece9] border border-[#ebd2ce] p-4 rounded-xl clear-text"></p>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-[#fbf8f2] border-t-2 border-dashed border-[#e6ddcf] flex justify-between items-center relative z-10">
+                <button id="modal-speak-btn" class="felt-btn font-bold py-2.5 px-5 flex items-center gap-2 text-xs clear-text">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"></path>
+                    </svg>
+                    朗讀此句子
+                </button>
+                <button onclick="closeTranslationModal()" class="text-stone-600 hover:text-stone-900 transition font-bold text-sm clear-text">
+                    關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯部分 -->
+    <script>
+        // --- 全域變數定義 ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-english-reader';
+        
+        // 預設示範短文
+        const sampleTexts = {
+            1: `The power of habit is an incredible force in our daily lives. Habits emerge because the brain is constantly looking for ways to save effort. Left to its own devices, the brain will try to make almost any routine into a habit, because habits allow our minds to ramp down more often. This effort-saving instinct is a giant advantage. However, understanding how habits work makes them much easier to control. By identifying the cues and rewards, we can change bad habits and build constructive new ones.`,
+            2: `Language is not just a tool for communication; it is a gateway to understanding diverse cultures and perspectives. When we learn a new language, we are not merely memorizing words and grammatical rules. Instead, we are training our brains to see the world through a different lens. Every idiom, proverb, and cultural nuance tells a unique story about its people. Thus, embarking on a language-learning journey is one of the most rewarding adventures a person can undertake.`
+        };
+
+        // 收藏單字本資料狀態
+        let savedVocabulary = [];
+
+        // --- 初始化設定與載入 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            // 初始化語音模組
+            initSpeechSynthesis();
+
+            // 載入預設文章一
+            loadSampleText(1);
+            parseNewArticle(true);
+
+            // 自 LocalStorage 載入已儲存單字
+            loadSavedVocabFromStorage();
+
+            // 註冊點擊外部關閉及選取事件
+            document.addEventListener('click', handleOutsideClick);
+            document.addEventListener('selectionchange', handleTextSelection);
+
+            // 監聽速度滑條變更
+            const rateSlider = document.getElementById('speech-rate');
+            const rateVal = document.getElementById('rate-value');
+            if (rateSlider && rateVal) {
+                rateSlider.addEventListener('input', (e) => {
+                    rateVal.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+                });
+            }
+
+            // 註冊 AI 伴侶輸入框 Enter 傳送事件
+            const buddyInput = document.getElementById('buddy-input');
+            if (buddyInput) {
+                buddyInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') sendBuddyMessage();
+                });
+            }
+        });
+
+        // --- 核心 API 工具 (Anthropic Claude API) ---
+        async function queryAI(promptText, systemPrompt, schema = null) {
+            let fullSystem = systemPrompt;
+            if (schema) {
+                fullSystem += "\n\nIMPORTANT: You must respond ONLY with a valid JSON object matching this schema. No markdown, no code fences, no extra text:\n" + JSON.stringify(schema, null, 2);
+            }
+
+            const response = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "claude-sonnet-4-20250514",
+                    max_tokens: 1000,
+                    system: fullSystem,
+                    messages: [{ role: "user", content: promptText }]
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`AI 連線失敗 (${response.status}): ${errText.slice(0, 200)}`);
+            }
+
+            const data = await response.json();
+            const text = data.content?.[0]?.text;
+            if (!text) throw new Error("AI 回傳格式異常");
+
+            if (schema) {
+                const clean = text.replace(/```json|```/g, "").trim();
+                try {
+                    return JSON.parse(clean);
+                } catch(e) {
+                    // 嘗試提取第一個 JSON 物件
+                    const match = clean.match(/\{[\s\S]*\}/);
+                    if (match) return JSON.parse(match[0]);
+                    throw new Error("AI 回傳 JSON 解析失敗");
+                }
+            }
+            return text;
+        }
+        let synthVoices = [];
+        
+        function initSpeechSynthesis() {
+            if (!('speechSynthesis' in window)) {
+                showToast("您的瀏覽器不支援語音朗讀功能！", "error");
+                return;
+            }
+            
+            window.speechSynthesis.onvoiceschanged = populateVoiceList;
+            populateVoiceList();
+        }
+
+        // 載入可供選擇的語音口音
+        function populateVoiceList() {
+            if (!('speechSynthesis' in window)) return;
+            const voices = window.speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voice-select');
+            if (!voiceSelect) return;
+
+            // 篩選出英文發音
+            synthVoices = voices.filter(voice => voice.lang.startsWith('en'));
+            
+            voiceSelect.innerHTML = '';
+            
+            if (synthVoices.length === 0) {
+                synthVoices = voices;
+            }
+
+            if (synthVoices.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "default";
+                opt.textContent = "系統預設發音";
+                voiceSelect.appendChild(opt);
+                return;
+            }
+
+            synthVoices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                let displayName = voice.name;
+                if (voice.lang.includes('US') || voice.lang.includes('us')) displayName += " (美語)";
+                else if (voice.lang.includes('GB') || voice.lang.includes('gb')) displayName += " (英語)";
+                else displayName += ` (${voice.lang})`;
+                
+                option.textContent = displayName;
+                
+                if (voice.lang.includes('US') && (voice.name.includes('Google') || voice.name.includes('Natural'))) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        // 觸發朗讀核心函數
+        function speakText(text) {
+            if (!('speechSynthesis' in window)) return;
+            
+            window.speechSynthesis.cancel();
+
+            if (!text || text.trim() === '') return;
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            const rateSlider = document.getElementById('speech-rate');
+            if (rateSlider) {
+                utterance.rate = parseFloat(rateSlider.value);
+            }
+
+            const voiceSelect = document.getElementById('voice-select');
+            if (voiceSelect && voiceSelect.value !== "default" && synthVoices.length > 0) {
+                const selectedVoice = synthVoices[parseInt(voiceSelect.value)];
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                }
+            } else {
+                utterance.lang = 'en-US';
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 微調語速控制函數
+        function adjustSpeechRate(delta) {
+            const rateSlider = document.getElementById('speech-rate');
+            const rateVal = document.getElementById('rate-value');
+            if (!rateSlider || !rateVal) return;
+
+            let currentVal = parseFloat(rateSlider.value);
+            let newVal = currentVal + delta;
+            
+            const min = parseFloat(rateSlider.min);
+            const max = parseFloat(rateSlider.max);
+            
+            if (newVal < min) newVal = min;
+            if (newVal > max) newVal = max;
+
+            newVal = Math.round(newVal * 10) / 10;
+
+            rateSlider.value = newVal;
+            rateVal.textContent = newVal.toFixed(1) + 'x';
+        }
+
+        // --- 核心 API 工具 (指數退避快速失敗重試機制) ---
+        // --- 功能一：載入、解析與渲染英文文章 ---
+        let articleReadingState = 'stopped'; // 追蹤目前按鈕的播放/暫停狀態
+        let lastParsedText = ""; // 紀錄上一次解析的文章，用來判斷是全新解析還是切換暫停
+
+        function updateParseButtonUI(state) {
+            articleReadingState = state;
+            const parseBtn = document.getElementById('parse-btn');
+            if (!parseBtn) return;
+            
+            if (state === 'playing') {
+                parseBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6"></path>
+                    </svg>
+                    <span>暫停朗讀</span>
+                `;
+                parseBtn.style.backgroundColor = '#eab308'; // 黃色提醒暫停
+                parseBtn.style.borderColor = '#fde047';
+            } else if (state === 'paused') {
+                parseBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>繼續朗讀</span>
+                `;
+                parseBtn.style.backgroundColor = '#10b981'; // 綠色提醒繼續
+                parseBtn.style.borderColor = '#6ee7b7';
+            } else {
+                // 恢復原狀預設
+                parseBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <span>開始解析閱讀</span>
+                `;
+                parseBtn.style.backgroundColor = ''; 
+                parseBtn.style.borderColor = '';
+            }
+        }
+
+        function loadSampleText(num) {
+            const input = document.getElementById('article-input');
+            if (input && sampleTexts[num]) {
+                input.value = sampleTexts[num];
+                showToast(`已載入示範範例 ${num}`, "info");
+            }
+        }
+
+        function clearArticle() {
+            document.getElementById('article-input').value = '';
+            const readFullBtn = document.getElementById('read-full-article-btn');
+            if (readFullBtn) readFullBtn.classList.add('hidden');
+            window.speechSynthesis.cancel();
+            updateParseButtonUI('stopped');
+            lastParsedText = "";
+            showToast("已清空輸入欄", "info");
+        }
+
+        function parseNewArticle(isAutoLoad = false) {
+            // 防呆處理傳入參數，避免被 HTML Event 事件意外覆蓋
+            const autoLoad = typeof isAutoLoad === 'boolean' ? isAutoLoad : false;
+
+            const text = document.getElementById('article-input').value.trim();
+            const container = document.getElementById('interactive-text');
+            const readFullBtn = document.getElementById('read-full-article-btn');
+            
+            if (!text) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-48 text-center text-stone-400">
+                        <p class="text-sm font-semibold clear-text">文章內容為空，請輸入英文短文並解析！</p>
+                    </div>`;
+                if (readFullBtn) readFullBtn.classList.add('hidden');
+                updateParseButtonUI('stopped');
+                lastParsedText = "";
+                return;
+            }
+
+            // 判斷是否只需切換「暫停/繼續」狀態 (文字未修改且處於朗讀相關狀態)
+            if (!autoLoad && text === lastParsedText && (articleReadingState === 'playing' || articleReadingState === 'paused')) {
+                if (articleReadingState === 'paused') {
+                    window.speechSynthesis.resume();
+                    updateParseButtonUI('playing');
+                    showToast("繼續朗讀...", "info");
+                } else {
+                    window.speechSynthesis.pause();
+                    updateParseButtonUI('paused');
+                    showToast("已暫停朗讀", "info");
+                }
+                return;
+            }
+
+            // 紀錄當前解析的新內容
+            lastParsedText = text;
+
+            const paragraphs = text.split(/\n+/);
+            let resultHtml = '';
+
+            paragraphs.forEach(para => {
+                if (!para.trim()) return;
+                resultHtml += '<p class="mb-5 leading-loose text-stone-700 text-base tracking-wide clear-text">';
+                
+                const tokens = para.split(/([a-zA-Z'-]+)/);
+                
+                tokens.forEach(token => {
+                    if (/^[a-zA-Z'-]+$/.test(token)) {
+                        const cleanWord = token.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '');
+                        resultHtml += `<span class="word-clickable px-0.5 rounded cursor-pointer border-b border-dashed border-[#e28f83]/50 hover:bg-[#fcece9] transition-colors duration-150" data-word="${cleanWord}">${token}</span>`;
+                    } else {
+                        resultHtml += token.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                });
+                resultHtml += '</p>';
+            });
+
+            container.innerHTML = resultHtml;
+
+            const clickableWords = container.querySelectorAll('.word-clickable');
+            clickableWords.forEach(wordSpan => {
+                wordSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleWordClick(wordSpan);
+                });
+            });
+
+            if (readFullBtn) {
+                readFullBtn.classList.remove('hidden');
+            }
+
+            if (!autoLoad) {
+                // 主動點擊解析時，停止其他語音並重新開始朗讀全文
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                const rateSlider = document.getElementById('speech-rate');
+                if (rateSlider) utterance.rate = parseFloat(rateSlider.value);
+
+                const voiceSelect = document.getElementById('voice-select');
+                if (voiceSelect && voiceSelect.value !== "default" && synthVoices.length > 0) {
+                    const selectedVoice = synthVoices[parseInt(voiceSelect.value)];
+                    if (selectedVoice) utterance.voice = selectedVoice;
+                } else {
+                    utterance.lang = 'en-US';
+                }
+
+                // 綁定事件：當語音自然結束或被中斷時，自動復原按鈕為「開始解析閱讀」
+                utterance.onend = function() {
+                    updateParseButtonUI('stopped');
+                };
+                // 如果因錯誤中斷也復原
+                utterance.onerror = function() {
+                    updateParseButtonUI('stopped');
+                };
+
+                window.speechSynthesis.speak(utterance);
+                updateParseButtonUI('playing');
+
+                showToast("文章解析成功！已為您自動朗讀短文全文。 🐑", "success");
+                appendBuddySystemMessage("📖 偵測到您解析了新的文章段落！已為您朗讀全文，您可以點選上方按鈕讓我進行「分析句型文法」囉！🧶");
+            } else {
+                // 網頁剛載入時，只解析不發音（避免瀏覽器封鎖自動播放），按鈕保持預設
+                updateParseButtonUI('stopped');
+                appendBuddySystemMessage("📖 示範文章已自動解析就緒！您可以點擊左方「開始解析閱讀」聽聽看，或讓我幫您「分析句型文法」囉！🧶");
+            }
+        }
+
+        function readFullArticle() {
+            const text = document.getElementById('article-input').value.trim();
+            if (text) {
+                lastParsedText = ""; // 強制清空紀錄，確保按下時從頭重新朗讀
+                parseNewArticle(false);
+            }
+        }
+
+        // --- 功能二：點擊單字發音與卡片展示 (Free Dictionary API) ---
+        let currentPopoverSessionId = null;
+
+        // 詞性縮寫對照表（英文 → 中文簡稱）
+        const posMap = {
+            noun: 'n.', verb: 'v.', adjective: 'adj.', adverb: 'adv.',
+            pronoun: 'pron.', preposition: 'prep.', conjunction: 'conj.',
+            interjection: 'interj.', determiner: 'det.', exclamation: 'excl.'
+        };
+
+        // 離線備用翻譯（常見高頻詞，API 查不到時顯示）
+        const fallbackDict = {
+            the:'冠詞', a:'冠詞', an:'冠詞', and:'和、及', or:'或者',
+            is:'是', are:'是', was:'是', were:'是', be:'是',
+            have:'有', has:'有', had:'有', do:'做', does:'做', did:'做',
+            not:'不', no:'不、沒有', in:'在…裡', on:'在…上', at:'在',
+            to:'到、向', of:'的', for:'為了', with:'與、用', by:'被、由',
+            from:'從', that:'那、那個', this:'這、這個', it:'它',
+            he:'他', she:'她', they:'他們', we:'我們', you:'你',
+            his:'他的', her:'她的', their:'他們的', our:'我們的',
+            will:'將會', can:'能夠', could:'可以', would:'將會',
+            should:'應該', may:'也許', might:'可能', must:'必須',
+            also:'也、同樣', very:'非常', more:'更多', most:'最多',
+            than:'比', but:'但是', if:'如果', when:'當', where:'哪裡',
+            how:'如何', what:'什麼', which:'哪個', who:'誰',
+            because:'因為', so:'所以', like:'像、喜歡', just:'只是',
+            all:'所有', some:'一些', any:'任何', each:'每個',
+            even:'甚至', only:'只有', still:'仍然', already:'已經'
+        };
+
+        async function handleWordClick(element) {
+            const word = element.getAttribute('data-word');
+            if (!word || word.length < 2) return;
+
+            const sessionId = Date.now();
+            currentPopoverSessionId = sessionId;
+
+            speakText(word);
+            showPopoverLoading(element, word);
+
+            try {
+                const result = await lookupWord(word);
+                if (currentPopoverSessionId === sessionId) {
+                    renderPopoverContent(element, result);
+                }
+            } catch (err) {
+                console.error(err);
+                if (currentPopoverSessionId === sessionId) {
+                    renderPopoverError(element, word, err.message);
+                }
+            }
+        }
+
+        async function lookupWord(word) {
+            const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+            if (!clean) throw new Error('無效單字');
+
+            // 呼叫 Free Dictionary API（免費、支援 CORS、無需金鑰）
+            const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`);
+            
+            if (!res.ok) {
+                // 查不到時，用備用字典或顯示基本資訊
+                const fallback = fallbackDict[clean];
+                return {
+                    word: clean,
+                    phonetic: '',
+                    partOfSpeech: '—',
+                    translation: fallback || '（查無此詞，請點擊朗讀）'
+                };
+            }
+
+            const data = await res.json();
+            const entry = data[0];
+
+            // 取音標
+            let phonetic = entry.phonetic || '';
+            if (!phonetic && entry.phonetics?.length) {
+                phonetic = entry.phonetics.find(p => p.text)?.text || '';
+            }
+
+            // 取第一個詞性與釋義
+            const meaning = entry.meanings?.[0];
+            const rawPos = meaning?.partOfSpeech || '';
+            const partOfSpeech = posMap[rawPos] || (rawPos ? rawPos.slice(0,5)+'.' : 'n.');
+            const engDef = meaning?.definitions?.[0]?.definition || '';
+
+            // 翻譯：優先用備用字典，否則顯示英文定義
+            const translation = fallbackDict[clean] || translateDefinition(clean, rawPos, engDef);
+
+            return { word: clean, phonetic, partOfSpeech, translation };
+        }
+
+        // 將英文詞義轉為簡易中文說明
+        function translateDefinition(word, pos, engDef) {
+            if (!engDef) return '（點擊朗讀，查詢更多釋義）';
+            // 截短英文定義，供使用者參考
+            const short = engDef.length > 80 ? engDef.slice(0, 80) + '...' : engDef;
+            return short;
+        }
+
+        function showPopoverLoading(element, word) {
+            const popover = document.getElementById('word-popover');
+            popover.innerHTML = `
+                <button onclick="hideWordPopover()" class="absolute top-3 right-3 p-1 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition" title="關閉">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <div class="flex flex-col items-center justify-center py-4 mt-2">
+                    <svg class="animate-spin h-6 w-6 text-[#e28f83] mb-2" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-xs text-stone-500 font-bold clear-text">正在針織查詢 "${word}" ...</p>
+                </div>
+            `;
+            
+            popover.classList.remove('hidden');
+            positionPopoverNearElement(element, popover);
+        }
+
+        function renderPopoverContent(element, data) {
+            const popover = document.getElementById('word-popover');
+            
+            const isSaved = savedVocabulary.some(item => item.word.toLowerCase() === data.word.toLowerCase());
+            const starClass = isSaved ? 'text-amber-500 fill-amber-500' : 'text-stone-400 hover:text-amber-500';
+
+            const safeWord = (data.word || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safePhonetic = (data.phonetic || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safePos = (data.partOfSpeech || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safeTrans = (data.translation || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+            popover.innerHTML = `
+                <div class="absolute -top-3.5 -left-3 pointer-events-none animate-butterfly flex items-center">
+                    <svg class="w-5 h-5 text-sky-300 animate-butterfly-wings" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 8c.5-1.5 1.5-3 3.5-3 2.5 0 3.5 2 3.5 4s-1.5 4.5-3.5 5.5c-1 .5-2.5 1-3.5 1.5m0-8c-.5-1.5-1.5-3-3.5-3C5 4 4 6 4 8s1.5 4.5 3.5 5.5c1 .5 2.5 1 3.5 1.5" />
+                    </svg>
+                </div>
+
+                <button onclick="hideWordPopover()" class="absolute top-3 right-3 p-1 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition z-20" title="關閉">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+
+                <div class="relative flex flex-col gap-2 z-10 pr-4">
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h3 class="text-base font-bold text-stone-900 leading-tight clear-text">${data.word}</h3>
+                            <span class="text-xs text-stone-500 font-mono font-bold">${data.phonetic}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button onclick="toggleSaveVocab('${safeWord}', '${safePhonetic}', '${safePos}', '${safeTrans}')" class="p-1.5 rounded-xl hover:bg-stone-50 transition" title="收藏此單字">
+                                <svg class="w-6 h-6 ${starClass}" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                </svg>
+                            </button>
+                            <button onclick="speakText('${safeWord}')" class="p-1.5 rounded-xl hover:bg-stone-50 text-indigo-600 transition" title="朗讀">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-[10px] font-bold bg-[#fdf2f0] text-[#bc675b] px-2.5 py-0.5 rounded-lg border border-[#f5dbd7] clear-text">${data.partOfSpeech}</span>
+                    </div>
+
+                    <div class="mt-2 pt-2 border-t-2 border-dashed border-[#e6ddcf]">
+                        <p class="text-xs font-bold text-stone-700 leading-relaxed clear-text">${data.translation}</p>
+                    </div>
+
+                    <button id="popover-ai-sentence-btn" onclick="generateAISentences('${safeWord}')" class="w-full mt-3 felt-btn py-1.5 px-3 text-xs font-bold flex items-center justify-center gap-1 clear-text">
+                        ✨ 生成 AI 情境例句
+                    </button>
+                    <div id="popover-ai-sentences-result" class="hidden mt-2 pt-2 border-t border-dashed border-stone-200 text-[11px] text-stone-600 space-y-2"></div>
+                </div>
+            `;
+            
+            positionPopoverNearElement(element, popover);
+        }
+
+        async function generateAISentences(word) {
+            const resultDiv = document.getElementById('popover-ai-sentences-result');
+            const btn = document.getElementById('popover-ai-sentence-btn');
+            if (!resultDiv || !btn) return;
+
+            resultDiv.classList.remove('hidden');
+
+            // 嘗試用 Free Dictionary API 取得真實例句
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-3.5 w-3.5 text-white mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>查詢例句中...`;
+
+            try {
+                const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`);
+                
+                if (!res.ok) throw new Error('查無例句');
+                const data = await res.json();
+                
+                // 收集所有有例句的定義
+                const examples = [];
+                for (const entry of data) {
+                    for (const meaning of (entry.meanings || [])) {
+                        for (const def of (meaning.definitions || [])) {
+                            if (def.example && examples.length < 3) {
+                                examples.push({
+                                    english: def.example,
+                                    pos: posMap[meaning.partOfSpeech] || meaning.partOfSpeech || '',
+                                    definition: def.definition || ''
+                                });
+                            }
+                        }
+                    }
+                }
+
+                if (examples.length === 0) throw new Error('此單字無收錄例句');
+
+                let html = '';
+                examples.forEach((ex, idx) => {
+                    html += `
+                        <div class="bg-stone-50 p-2 rounded-lg border border-stone-100">
+                            <p class="font-bold text-stone-800 leading-snug text-[11px]">${idx + 1}. ${ex.english}</p>
+                            <p class="text-[10px] text-[#bc675b] font-medium mt-1 leading-snug">${ex.pos} ${ex.definition.slice(0, 60)}${ex.definition.length > 60 ? '...' : ''}</p>
+                            <button onclick="speakText('${ex.english.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="text-[9px] text-indigo-600 hover:underline mt-1 font-bold flex items-center gap-0.5">
+                                🔊 點擊播放發音
+                            </button>
+                        </div>
+                    `;
+                });
+                resultDiv.innerHTML = html;
+                btn.innerHTML = `✅ 已載入例句`;
+            } catch (err) {
+                resultDiv.innerHTML = `<p class="text-stone-500 text-[10px] leading-relaxed">📖 此單字無收錄公開例句。<br>建議至 <a href="https://www.ldoceonline.com/dictionary/${encodeURIComponent(word)}" target="_blank" class="text-indigo-600 underline">Longman 字典</a> 查詢更多例句。</p>`;
+                btn.innerHTML = `📖 查詢例句`;
+                btn.disabled = false;
+            }
+        }
+
+        function renderPopoverError(element, word, errorMsg) {
+            const popover = document.getElementById('word-popover');
+            const safeWord = (word || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            popover.innerHTML = `
+                <button onclick="hideWordPopover()" class="absolute top-3 right-3 p-1 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition z-20" title="關閉">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <div class="text-xs text-rose-600 space-y-1 z-10 relative pr-6">
+                    <p class="font-bold clear-text text-sm">查詢失敗</p>
+                    <p class="leading-relaxed clear-text text-stone-600">${errorMsg}</p>
+                    <div class="pt-3 border-t-2 border-dashed border-rose-100 mt-3 flex justify-between items-center">
+                        <button onclick="speakText('${safeWord}')" class="text-[#e28f83] font-bold hover:bg-[#fdf2f0] px-2 py-1 rounded transition clear-text">🔊 僅朗讀單字</button>
+                        <button onclick="hideWordPopover()" class="text-stone-500 hover:text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1 rounded font-semibold clear-text transition">關閉</button>
+                    </div>
+                </div>
+            `;
+            positionPopoverNearElement(element, popover);
+        }
+
+        function positionPopoverNearElement(element, popover) {
+            const rect = element.getBoundingClientRect();
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            popover.classList.remove('hidden');
+            popover.style.display = 'block';
+
+            const popoverHeight = popover.offsetHeight;
+            const popoverWidth = popover.offsetWidth;
+
+            let top = rect.top + scrollTop - popoverHeight - 12;
+            let left = rect.left + scrollLeft + (rect.width / 2) - (popoverWidth / 2);
+
+            if (top < scrollTop) {
+                top = rect.bottom + scrollTop + 12;
+            }
+
+            if (left < 10) {
+                left = 10;
+            } else if (left + popoverWidth > window.innerWidth - 10) {
+                left = window.innerWidth - popoverWidth - 10;
+            }
+
+            popover.style.top = `${top}px`;
+            popover.style.left = `${left}px`;
+        }
+
+        function hideWordPopover() {
+            currentPopoverSessionId = null; 
+            const popover = document.getElementById('word-popover');
+            if (popover) {
+                popover.classList.add('hidden');
+                popover.style.display = 'none';
+            }
+        }
+
+        // --- 功能三：反白長句翻譯與朗讀 ---
+        let currentSelectedText = "";
+
+        function handleTextSelection() {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            const interactiveText = document.getElementById('interactive-text');
+            const bubble = document.getElementById('selection-bubble');
+
+            if (!selectedText || (!interactiveText.contains(selection.anchorNode) && !interactiveText.contains(selection.focusNode))) {
+                bubble.classList.add('hidden');
+                return;
+            }
+
+            const wordCount = selectedText.split(/\s+/).length;
+            if (wordCount <= 1) {
+                bubble.classList.add('hidden');
+                return;
+            }
+
+            currentSelectedText = selectedText;
+
+            try {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+                bubble.classList.remove('hidden');
+
+                let top = rect.top + scrollTop - bubble.offsetHeight - 12;
+                let left = rect.left + scrollLeft + (rect.width / 2) - (bubble.offsetWidth / 2);
+
+                if (top < scrollTop) {
+                    top = rect.bottom + scrollTop + 12;
+                }
+                if (left < 10) left = 10;
+                if (left + bubble.offsetWidth > window.innerWidth - 10) {
+                    left = window.innerWidth - bubble.offsetWidth - 10;
+                }
+
+                bubble.style.top = `${top}px`;
+                bubble.style.left = `${left}px`;
+            } catch (e) {}
+        }
+
+        const triggerTranslation = async (e) => {
+            e.preventDefault(); 
+            e.stopPropagation();
+            document.getElementById('selection-bubble').classList.add('hidden');
+            
+            if (!currentSelectedText) return;
+
+            openTranslationModal(currentSelectedText);
+            speakText(currentSelectedText);
+
+            // 逐字查詢 Free Dictionary API，組合音標
+            try {
+                const words = currentSelectedText.match(/[a-zA-Z'-]+/g) || [];
+                const phoneticParts = [];
+                
+                for (const w of words.slice(0, 8)) { // 最多查前8個字，避免太慢
+                    try {
+                        const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
+                        if (r.ok) {
+                            const d = await r.json();
+                            const ph = d[0]?.phonetic || d[0]?.phonetics?.find(p=>p.text)?.text || '';
+                            if (ph) phoneticParts.push(ph.replace(/\//g,''));
+                        }
+                    } catch(_) {}
+                }
+                
+                const phonetic = phoneticParts.length ? '/' + phoneticParts.join(' ') + '/' : '';
+                displayModalTranslation('（本機模式：朗讀功能正常，AI翻譯需連線 Claude 使用）', phonetic || null);
+            } catch (err) {
+                displayModalTranslation('（朗讀功能正常，AI翻譯需在 Claude 平台使用）', null);
+            }
+        };
+
+        const selectionBubble = document.getElementById('selection-bubble');
+        selectionBubble.addEventListener('mousedown', triggerTranslation);
+        selectionBubble.addEventListener('touchstart', triggerTranslation, { passive: false });
+
+        function openTranslationModal(origText) {
+            document.getElementById('modal-original-text').textContent = origText;
+            document.getElementById('modal-phonetic-text').classList.add('hidden');
+            document.getElementById('modal-translation-loading').classList.remove('hidden');
+            document.getElementById('modal-translation-text').classList.add('hidden');
+            document.getElementById('translation-modal').classList.remove('hidden');
+
+            const speakBtn = document.getElementById('modal-speak-btn');
+            const originalSpeakBtn = document.getElementById('modal-original-speak-btn');
+            
+            const speakAction = () => speakText(origText);
+            speakBtn.onclick = speakAction;
+            originalSpeakBtn.onclick = speakAction;
+        }
+
+        function displayModalTranslation(transText, phoneticText) {
+            document.getElementById('modal-translation-loading').classList.add('hidden');
+            
+            const transPara = document.getElementById('modal-translation-text');
+            transPara.textContent = transText;
+            transPara.classList.remove('hidden');
+
+            if (phoneticText) {
+                const phoneticPara = document.getElementById('modal-phonetic-text');
+                phoneticPara.textContent = phoneticText;
+                phoneticPara.classList.remove('hidden');
+            }
+        }
+
+        function closeTranslationModal() {
+            document.getElementById('translation-modal').classList.add('hidden');
+            window.speechSynthesis.cancel();
+        }
+
+        // --- 功能四：全句音標與自動朗讀 ---
+        async function convertSentenceToPhonetics() {
+            const sentence = document.getElementById('phonetic-input').value.trim();
+            if (!sentence) {
+                showToast("請先輸入要轉換音標的句子！", "warning");
+                return;
+            }
+
+            const outputPlaceholder = document.getElementById('phonetic-output-container');
+            const resultSection = document.getElementById('phonetic-result-section');
+            outputPlaceholder.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-10">
+                    <svg class="animate-spin h-8 w-8 text-[#e28f83] mb-3" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-sm text-stone-600 font-bold clear-text">正在逐字查詢音標...</p>
+                </div>
+            `;
+            outputPlaceholder.classList.remove('hidden');
+            resultSection.classList.add('hidden');
+
+            try {
+                const words = sentence.match(/[a-zA-Z'-]+/g) || [];
+                const phoneticParts = [];
+                
+                for (const w of words) {
+                    try {
+                        const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
+                        if (r.ok) {
+                            const d = await r.json();
+                            const ph = d[0]?.phonetic || d[0]?.phonetics?.find(p=>p.text)?.text || '';
+                            phoneticParts.push(ph ? ph.replace(/\//g,'') : w.toLowerCase());
+                        } else {
+                            phoneticParts.push(w.toLowerCase());
+                        }
+                    } catch(_) {
+                        phoneticParts.push(w.toLowerCase());
+                    }
+                }
+
+                const phonetic = '/' + phoneticParts.join(' ') + '/';
+
+                document.getElementById('phonetic-orig-text').textContent = sentence;
+                document.getElementById('phonetic-ipa-text').textContent = phonetic;
+                document.getElementById('phonetic-trans-text').textContent = '（AI翻譯功能需在 Claude 平台使用；朗讀功能正常）';
+
+                const speakBtn = document.getElementById('phonetic-speak-btn');
+                speakBtn.onclick = () => speakText(sentence);
+
+                outputPlaceholder.classList.add('hidden');
+                resultSection.classList.remove('hidden');
+                showToast("逐字音標查詢完成！", "success");
+            } catch (err) {
+                console.error(err);
+                outputPlaceholder.innerHTML = `
+                    <div class="text-center py-6 text-rose-600 max-w-sm mx-auto">
+                        <span class="text-4xl block mb-2">🐑💦</span>
+                        <p class="font-bold clear-text">查詢失敗</p>
+                        <p class="text-xs text-stone-500 mt-1 leading-relaxed clear-text">${err.message}</p>
+                        <button onclick="convertSentenceToPhonetics()" class="mt-4 bg-[#fbece9] text-[#bc675b] font-bold px-4 py-2 rounded-xl border border-[#ebd2ce] hover:bg-[#e28f83] hover:text-white transition text-xs clear-text">重新嘗試</button>
+                    </div>
+                `;
+            }
+        }
+
+        function clearPhoneticArea() {
+            document.getElementById('phonetic-input').value = '';
+            document.getElementById('phonetic-output-container').classList.remove('hidden');
+            document.getElementById('phonetic-output-container').innerHTML = `
+                <span class="text-4xl mb-2">📣</span>
+                <p class="text-sm font-medium text-stone-500 clear-text">轉換後的句子與美式音標會顯示在這裡</p>
+            `;
+            document.getElementById('phonetic-result-section').classList.add('hidden');
+            window.speechSynthesis.cancel();
+            showToast("已清空音標工具", "info");
+        }
+
+        // --- 功能五：單字收藏夾 ---
+        function loadSavedVocabFromStorage() {
+            const stored = localStorage.getItem('smart_reader_vocab');
+            if (stored) {
+                try {
+                    savedVocabulary = JSON.parse(stored);
+                } catch (e) {
+                    savedVocabulary = [];
+                }
+            }
+            renderSavedVocabulary();
+        }
+
+        function toggleSaveVocab(word, phonetic, partOfSpeech, translation) {
+            const index = savedVocabulary.findIndex(item => item.word.toLowerCase() === word.toLowerCase());
+            
+            if (index > -1) {
+                savedVocabulary.splice(index, 1);
+                showToast(`已移出單字本：${word}`, "info");
+            } else {
+                savedVocabulary.push({ word, phonetic, partOfSpeech, translation, timestamp: Date.now() });
+                showToast(`已儲存單字：${word} ★`, "success");
+            }
+
+            localStorage.setItem('smart_reader_vocab', JSON.stringify(savedVocabulary));
+            renderSavedVocabulary();
+            
+            const activeWordSpan = document.querySelector(`.word-clickable[data-word="${word}"]`);
+            if (activeWordSpan) {
+                renderPopoverContent(activeWordSpan, { word, phonetic, partOfSpeech, translation });
+            }
+        }
+
+        function renderSavedVocabulary() {
+            const listContainer = document.getElementById('vocab-list');
+            const emptyState = document.getElementById('vocab-empty-state');
+            const countBadge = document.getElementById('vocab-count');
+
+            countBadge.textContent = savedVocabulary.length;
+
+            if (savedVocabulary.length === 0) {
+                emptyState.classList.remove('hidden');
+                const cards = listContainer.querySelectorAll('.vocab-card');
+                cards.forEach(c => c.remove());
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            
+            const existingCards = listContainer.querySelectorAll('.vocab-card');
+            existingCards.forEach(c => c.remove());
+
+            savedVocabulary.slice().reverse().forEach(item => {
+                const safeWord = (item.word || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safePhonetic = (item.phonetic || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safePos = (item.partOfSpeech || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeTrans = (item.translation || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                const card = document.createElement('div');
+                card.className = "vocab-card bg-[#fdfcf9] border-2 border-dashed border-[#e6ddcf] p-4 rounded-2xl flex justify-between items-start gap-2 hover:bg-[#fbf8f2] transition";
+                card.innerHTML = `
+                    <div class="space-y-1 flex-1">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-bold text-stone-900 text-base clear-text">${item.word}</span>
+                            <span class="text-[10px] font-bold bg-[#fdf2f0] text-[#bc675b] px-2 py-0.2 rounded-md border border-[#f5dbd7] clear-text">${item.partOfSpeech}</span>
+                        </div>
+                        <p class="text-xs text-stone-500 font-mono font-semibold clear-text">${item.phonetic}</p>
+                        <p class="text-xs font-bold text-stone-600 mt-1.5 leading-relaxed clear-text">${item.translation}</p>
+                    </div>
+                    <div class="flex items-center gap-0.5 flex-shrink-0">
+                        <button onclick="speakText('${safeWord}')" class="p-1.5 text-indigo-600 hover:bg-white rounded-xl transition" title="朗讀">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                            </svg>
+                        </button>
+                        <button onclick="toggleSaveVocab('${safeWord}', '${safePhonetic}', '${safePos}', '${safeTrans}')" class="p-1.5 text-[#bc675b] hover:bg-white rounded-xl transition" title="移除收藏">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function clearAllVocab() {
+            if (savedVocabulary.length === 0) return;
+            
+            const confirmed = confirm("🐑 您確定要將辛苦針織的所有收藏單字清除嗎？");
+            if (confirmed) {
+                savedVocabulary = [];
+                localStorage.removeItem('smart_reader_vocab');
+                renderSavedVocabulary();
+                showToast("已清空所有單字", "info");
+                
+                hideWordPopover();
+                parseNewArticle();
+            }
+        }
+
+        // --- ✨ AI 羊毛氈學習伴侶 ---
+        function appendBuddyUserMessage(msg) {
+            const container = document.getElementById('buddy-chat-container');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = "bg-stone-100 border border-stone-200 p-2.5 rounded-2xl rounded-tr-none text-stone-800 leading-relaxed clear-text ml-4 self-end";
+            div.innerHTML = `<span class="font-bold text-stone-700 block mb-0.5">💬 您：</span>${msg}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendBuddySystemMessage(msg) {
+            const container = document.getElementById('buddy-chat-container');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = "bg-orange-50 border border-orange-100 p-2.5 rounded-2xl rounded-tl-none text-stone-700 leading-relaxed clear-text";
+            div.innerHTML = `<span class="font-bold text-orange-800 block mb-0.5">🐑 小羊布布：</span>${msg}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function triggerBuddyAction(actionType) {
+            const articleText = document.getElementById('article-input').value.trim();
+            if (!articleText) {
+                showToast("請先在左側貼上英文文章！🧶", "warning");
+                return;
+            }
+
+            let buttonLabel = actionType === 'grammar' ? '句型文法分析' : '簡化文章';
+            appendBuddyUserMessage(`請幫我進行「✨ ${buttonLabel}」！`);
+
+            // 本機模式：提供靜態學習建議
+            const tips = {
+                grammar: `📚 文法分析小提示（本機模式）：\n\n1️⃣ <strong>找主詞動詞</strong>：先找每個句子的主詞（S）和動詞（V），可以幫助理解句子結構。\n\n2️⃣ <strong>注意從屬連接詞</strong>：because, although, when, if, that 後面的子句是副詞子句或名詞子句。\n\n3️⃣ <strong>被動語態</strong>：be + Vpp（e.g. is called, are known）表示被動，常見於學術文章。\n\n💡 完整的 AI 文法分析功能，請在 Claude 平台（claude.ai）開啟此網頁使用！`,
+                simplify: `✂️ 簡化技巧小提示（本機模式）：\n\n1️⃣ 把長句拆成短句，每句只說一件事。\n\n2️⃣ 把困難單字換成常見單字（例：utilize → use）。\n\n3️⃣ 刪掉括號內的補充說明，先掌握主要意思。\n\n💡 完整的 AI 文章改寫功能，請在 Claude 平台（claude.ai）開啟此網頁使用！`
+            };
+            appendBuddySystemMessage(tips[actionType] || '功能需在 Claude 平台使用。');
+        }
+
+        async function sendBuddyMessage() {
+            const input = document.getElementById('buddy-input');
+            const query = input.value.trim();
+            if (!query) return;
+
+            input.value = '';
+            appendBuddyUserMessage(query);
+
+            // 本機模式：簡單關鍵字回應
+            const q = query.toLowerCase();
+            let reply = '';
+            if (q.includes('音標') || q.includes('ipa') || q.includes('發音')) {
+                reply = '🔊 發音練習：點擊文章中的任何單字，即可立即朗讀並查看音標！也可以使用下方的「全句音標轉換器」輸入句子查詢音標。';
+            } else if (q.includes('文法') || q.includes('grammar')) {
+                reply = '📖 文法學習建議：點擊「✨ 句型文法」按鈕，我會提供本機版的文法分析提示！完整 AI 解析需在 Claude 平台使用。';
+            } else if (q.includes('單字') || q.includes('字典') || q.includes('意思')) {
+                reply = '📚 查字功能：直接點擊文章中的任何英文單字，即可查看音標、詞性和釋義，也可以收藏到單字本！';
+            } else if (q.includes('翻譯')) {
+                reply = '💬 翻譯功能：用滑鼠反白選取文章中的句子，就會出現「翻譯與朗讀」按鈕！';
+            } else {
+                reply = `您好！目前在本機模式下，小羊布布提供以下功能：\n\n🔊 <strong>點擊單字</strong> → 音標 + 詞性 + 釋義\n📝 <strong>反白句子</strong> → 朗讀功能\n⭐ <strong>★ 收藏</strong> → 加入單字本\n\n如需完整 AI 對話功能，請在 <strong>Claude 平台</strong>使用此網頁！`;
+            }
+            appendBuddySystemMessage(reply);
+        }
+
+        function showBuddyLoading() {
+            const container = document.getElementById('buddy-chat-container');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.id = "buddy-loading-indicator";
+            div.className = "flex items-center gap-2 text-stone-400 py-1 pl-1";
+            div.innerHTML = `
+                <svg class="animate-spin h-4 w-4 text-[#e28f83]" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-[11px] font-bold">布布正在針織回覆中...</span>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function removeBuddyLoading() {
+            const loader = document.getElementById('buddy-loading-indicator');
+            if (loader) loader.remove();
+        }
+
+        // --- 全域事件管理 (點擊外部自動隱藏氣泡與字卡) ---
+        function handleOutsideClick(e) {
+            const popover = document.getElementById('word-popover');
+            if (popover && !e.target.classList.contains('word-clickable') && !popover.contains(e.target)) {
+                hideWordPopover();
+            }
+        }
+
+        // --- 烤麵包通知 (Toast Messages) ---
+        function showToast(message, type = 'info') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'fixed top-24 right-4 z-50 flex flex-col gap-2 pointer-events-none';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-stone-800";
+            if (type === 'success') bgClass = "bg-emerald-600";
+            if (type === 'error') bgClass = "bg-rose-600";
+            if (type === 'warning') bgClass = "bg-amber-600";
+            if (type === 'info') bgClass = "bg-[#e28f83]";
+
+            toast.className = `${bgClass} text-white text-xs font-bold px-4 py-3.5 rounded-2xl shadow-xl transition-all transform translate-y-2 opacity-0 flex items-center gap-2 max-w-sm border-2 border-white/20 clear-text`;
+            toast.innerHTML = `
+                <span>🧶 ${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-8px]');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
